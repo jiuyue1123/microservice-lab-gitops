@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rabbitmq
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: microservice-lab
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservice-lab-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://cloudpirates-io.github.io/helm-charts/
+      chart: rabbitmq
+      targetRevision: "0.21.31"
+      helm:
+        releaseName: rabbitmq
+        valueFiles:
+          - $values/platform/rabbitmq/values.yaml
+    - repoURL: git@github.com:jiuyue1123/microservice-lab-gitops.git
+      targetRevision: master
+      ref: values

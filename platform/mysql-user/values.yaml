@@ -1,0 +1,37 @@
+image:
+  registry: docker.io
+  repository: mysql
+  tag: "8.4.11"
+  pullPolicy: IfNotPresent
+
+settings:
+  existingSecret: mysql-user-credentials
+  rootPassword:
+    secretKey: mysql-root-password
+
+userDatabase:
+  existingSecret: mysql-user-credentials
+  name:
+    secretKey: mysql-database
+  user:
+    secretKey: mysql-username
+  password:
+    secretKey: mysql-password
+
+storage:
+  className: microservice-lab-local
+  requestedSize: 5Gi
+  accessModes:
+    - ReadWriteOnce
+
+service:
+  type: ClusterIP
+  port: 3306
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 384Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi

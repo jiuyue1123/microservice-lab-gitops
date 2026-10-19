@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-headless
+  namespace: microservice-lab-platform
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: nacos
+  ports:
+    - name: client
+      port: 8848
+      targetPort: client
+    - name: grpc-client
+      port: 9848
+      targetPort: grpc-client
+    - name: grpc-server
+      port: 9849
+      targetPort: grpc-server
+    - name: console
+      port: 8080
+      targetPort: console
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos
+  namespace: microservice-lab-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: nacos
+  ports:
+    - name: client
+      port: 8848
+      targetPort: client
+    - name: grpc-client
+      port: 9848
+      targetPort: grpc-client
+    - name: grpc-server
+      port: 9849
+      targetPort: grpc-server
+    - name: console
+      port: 8080
+      targetPort: console

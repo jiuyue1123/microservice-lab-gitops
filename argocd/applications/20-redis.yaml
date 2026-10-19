@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: microservice-lab
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservice-lab-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://cloudpirates-io.github.io/helm-charts/
+      chart: redis
+      targetRevision: "0.37.2"
+      helm:
+        releaseName: redis
+        valueFiles:
+          - $values/platform/redis/values.yaml
+    - repoURL: git@github.com:jiuyue1123/microservice-lab-gitops.git
+      targetRevision: master
+      ref: values

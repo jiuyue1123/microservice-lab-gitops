@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: microservice-lab-apps
+  labels:
+    app.kubernetes.io/part-of: microservice-lab
+    microservice-lab.io/tier: application

@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+auth:
+  enabled: true
+  username: admin
+  existingSecret: rabbitmq-credentials
+  existingPasswordKey: rabbitmq-password
+  existingErlangCookieKey: rabbitmq-erlang-cookie
+
+persistence:
+  enabled: true
+  storageClass: microservice-lab-local
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+metrics:
+  enabled: false

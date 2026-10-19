@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - 00-namespaces.yaml
+  - 05-storage.yaml
+  - 10-mysql-auth.yaml
+  - 10-mysql-order.yaml
+  - 10-mysql-tenant.yaml
+  - 10-mysql-user.yaml
+  - 10-mysql-nacos.yaml
+  - 18-nacos.yaml
+  - 20-redis.yaml
+  - 20-rabbitmq.yaml

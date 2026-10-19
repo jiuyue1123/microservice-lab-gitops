@@ -1,0 +1,26 @@
+architecture: standalone
+replicaCount: 1
+
+image:
+  pullPolicy: IfNotPresent
+
+auth:
+  enabled: true
+  existingSecret: redis-credentials
+  existingSecretPasswordKey: redis-password
+
+persistence:
+  enabled: true
+  storageClass: microservice-lab-local
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+metrics:
+  enabled: false
