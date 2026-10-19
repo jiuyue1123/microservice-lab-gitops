@@ -17,6 +17,9 @@ spec:
     - name: grpc-server
       port: 9849
       targetPort: grpc-server
+    - name: raft
+      port: 7848
+      targetPort: raft
     - name: console
       port: 8080
       targetPort: console
@@ -40,6 +43,9 @@ spec:
     - name: grpc-server
       port: 9849
       targetPort: grpc-server
+    - name: raft
+      port: 7848
+      targetPort: raft
     - name: console
       port: 8080
       targetPort: console

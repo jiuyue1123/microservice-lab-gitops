@@ -93,7 +93,7 @@
 
 - 镜像 `nacos/nacos-server:v3.2.4`，standalone 模式，后端使用 `mysql-nacos`。
 - 开启鉴权：`NACOS_AUTH_ENABLE`、console/admin 认证都打开。
-- 端口：API 8848，gRPC 9848/9849，控制台 8080。
+- 端口：API 8848，gRPC 9848/9849，Raft 7848，控制台 8080。
 - 控制台不暴露 Ingress，开发机通过 port-forward 访问。
 - 第一次打开控制台要设置 `nacos` 管理员密码；`nacos-secrets` 里的 token/identity 是服务端认证配置，不是控制台密码。
 - `nacos-client-credentials` 预留给业务服务连接 Nacos；需要在控制台或 API 里创建对应的 Nacos 用户。
@@ -152,6 +152,7 @@ kubectl -n microservice-lab-platform get secret jwt-secret -o jsonpath='{.data.j
 | Nacos 控制台 | 8081 → 8080 |
 | Nacos HTTP API | 8848 |
 | Nacos gRPC | 9848 / 9849 |
+| Nacos Raft | 7848 |
 | MySQL auth | 3307 |
 | MySQL order | 3308 |
 | MySQL tenant | 3309 |

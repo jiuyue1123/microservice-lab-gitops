@@ -36,6 +36,8 @@ spec:
               containerPort: 9848
             - name: grpc-server
               containerPort: 9849
+            - name: raft
+              containerPort: 7848
             - name: console
               containerPort: 8080
           env:
