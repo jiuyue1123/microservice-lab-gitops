@@ -34,6 +34,8 @@ kustomize_build argocd/applications
 kustomize_build infrastructure/namespaces
 kustomize_build infrastructure/storage
 kustomize_build platform/nacos
+kustomize_build apps/user-service
+kustomize_build apps/gateway
 
 echo
 echo "== Helm repositories =="

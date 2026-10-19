@@ -2,7 +2,7 @@
 
 微服务实验平台的 GitOps 仓库。集群是单节点 k3s，入口用 Traefik，部署由 Argo CD 管理。
 
-平台包含 MySQL、Nacos、Redis、RabbitMQ。四个业务服务（auth/order/tenant/user）和 gateway 正在开发中，目前只保留 `apps/` 目录，服务清单和 Argo CD Application 后续再补。
+平台包含 MySQL、Nacos、Redis、RabbitMQ。user-service 和 gateway 已部署，auth-service、order-service、tenant-service 目前仍是目录占位。
 
 ## 部署流程
 
@@ -30,9 +30,31 @@
    ./bootstrap/secrets.sh
    ```
 
-   脚本会创建 5 个 MySQL Secret、Redis、RabbitMQ、Nacos 和 JWT 的 Secret，值写入仓库根目录的 `.secrets.env`（600，已忽略）。
+   脚本会创建平台 Secret，写入 `.secrets.env`；首次运行还会生成 `.env`，并据此在 `microservice-lab-apps` 创建 `app-common-env` 和 `user-service-db`。`.env` 是应用环境变量的唯一入口，修改后重新运行脚本并重启两个 Deployment。
 
-3. **网关 TLS（等 gateway 清单加入后执行）**
+3. **准备 Nacos**
+
+   首次访问控制台设置 admin 密码，然后：
+
+   - 创建 namespace `microservice-lab`
+   - 创建用户 `mslab`，密码取 `nacos-client-credentials`
+   - 创建角色并授予该 namespace 的读写权限
+   - 在 `DEFAULT_GROUP` 创建 `gateway.yaml`：
+
+   ```yaml
+   spring:
+     cloud:
+       gateway:
+         server:
+           webflux:
+             routes:
+               - id: user-service
+                 uri: lb://user-service
+                 predicates:
+                   - Path=/users/**
+   ```
+
+4. **网关 TLS**
 
    在 `/root/coredns/coredns-custom.yaml` 增加 `gateway IN A 192.168.0.132`，SOA serial 加一；在 `/root/coredns/certs/make-certs.sh` 的 `HOSTS` 增加 `gateway.lan`，重签证书后执行：
 
@@ -40,25 +62,26 @@
    ./bootstrap/tls-secret.sh
    ```
 
-   脚本会在 `microservice-lab-apps` 创建 `gateway-lan-tls`。gateway 的 Ingress 和 Application 还没加入，这一步可以等 gateway 清单准备好再做。
+   脚本会在 `microservice-lab-apps` 创建 `gateway-lan-tls`。
 
-4. **启动 Argo CD**
+5. **启动 Argo CD**
 
    ```bash
    kubectl apply -k bootstrap
    ```
 
-   子 Application 按 wave 创建：`-10` 命名空间 → `-5` StorageClass → `10` 五个 MySQL → `15` Nacos schema Job → `18` Nacos → `20` Redis、RabbitMQ。
+   子 Application 按 wave 创建：`-10` 命名空间 → `-5` StorageClass → `10` 五个 MySQL → `15` Nacos schema Job → `18` Nacos → `20` Redis、RabbitMQ → `30` user-service → `35` gateway。
 
-5. **验证**
+6. **验证**
 
    ```bash
    kubectl -n argocd get applications
    kubectl -n microservice-lab-platform get pods,jobs
-   kubectl -n microservice-lab-platform get elasticsearch 2>/dev/null || true
+   kubectl -n microservice-lab-apps get pods
+   curl -s --cacert /root/coredns/certs/ca.crt -o /dev/null -w '%{http_code}\n' https://gateway.lan/users
    ```
 
-   期望：所有 Application `Synced/Healthy`，五个 MySQL、Nacos、Redis、RabbitMQ 都 Running，`nacos-schema` Job 完成。
+   期望：所有 Application `Synced/Healthy`，平台和两个应用都 Running，`nacos-schema` Job 完成。
 
 ## 组件
 
@@ -74,6 +97,8 @@
 | nacos | microservice-lab-platform | `platform/nacos` | `nacos/nacos-server:v3.2.4` | 2Gi（日志） |
 | redis | microservice-lab-platform | `cloudpirates/redis` | `0.37.2` / `redis:8.10.2` | 2Gi |
 | rabbitmq | microservice-lab-platform | `cloudpirates/rabbitmq` | `0.21.31` / `rabbitmq:4.3.6-management` | 2Gi |
+| user-service | microservice-lab-apps | `apps/user-service` | `harbor.lan/microservice-lab/user-service:v1` | — |
+| gateway | microservice-lab-apps | `apps/gateway` | `harbor.lan/microservice-lab/gateway:gateway-v1` | — |
 
 ## 数据库
 
@@ -96,7 +121,9 @@
 - 端口：API 8848，gRPC 9848/9849，Raft 7848，控制台 8080。
 - 控制台不暴露 Ingress，开发机通过 port-forward 访问。
 - 第一次打开控制台要设置 `nacos` 管理员密码；`nacos-secrets` 里的 token/identity 是服务端认证配置，不是控制台密码。
-- `nacos-client-credentials` 预留给业务服务连接 Nacos；需要在控制台或 API 里创建对应的 Nacos 用户。
+- 使用独立 namespace `microservice-lab`；业务用户 `mslab` 需要在控制台创建并授予该 namespace 的读写权限。
+- `microservice-lab` namespace 的 `DEFAULT_GROUP` 下需要创建 `gateway.yaml`，内容见部署流程。网关只配置了 `/users/**` 路由，不带 `/api` 前缀。
+- `nacos-client-credentials` 预留给业务服务连接 Nacos。
 
 ## Secret
 
@@ -112,8 +139,10 @@
 | microservice-lab-platform | `nacos-secrets` | `auth-token`, `auth-identity-key`, `auth-identity-value` |
 | microservice-lab-platform | `nacos-client-credentials` | `username`, `password` |
 | microservice-lab-platform | `jwt-secret` | `jwt-secret` |
+| microservice-lab-apps | `app-common-env` | `.env` 中除 `DB_` 外的 key |
+| microservice-lab-apps | `user-service-db` | `.env` 中的 `DB_` key |
 
-`rabbitmq-erlang-cookie` 建好后不要再改。Nacos 的 `auth-token` 是 base64，解码后至少 32 字节。
+`rabbitmq-erlang-cookie` 建好后不要再改。Nacos 的 `auth-token` 是 base64，解码后至少 32 字节。应用环境变量统一由 `.env` 生成，模板见 `.env.example`；`.env` 不入库。
 
 ## 凭据获取
 
@@ -141,6 +170,10 @@ kubectl -n microservice-lab-platform get secret nacos-client-credentials -o json
 
 # JWT
 kubectl -n microservice-lab-platform get secret jwt-secret -o jsonpath='{.data.jwt-secret}' | base64 -d
+
+# 应用环境变量（从 .env 生成）
+kubectl -n microservice-lab-apps get secret app-common-env -o jsonpath='{.data.NACOS_PASSWORD}' | base64 -d
+kubectl -n microservice-lab-apps get secret user-service-db -o jsonpath='{.data.DB_PASSWORD}' | base64 -d
 ```
 
 ## 端口转发
@@ -161,6 +194,8 @@ kubectl -n microservice-lab-platform get secret jwt-secret -o jsonpath='{.data.j
 | Redis | 6379 |
 | RabbitMQ AMQP | 5672 |
 | RabbitMQ 管理 | 15672 |
+| user-service | 18081 → 8081 |
+| gateway | 18080 → 8080 |
 
 ```bash
 ./hack/port-forward.sh start
@@ -176,26 +211,22 @@ BIND_ADDRESS=0.0.0.0 ./hack/port-forward.sh start
 
 然后访问 `192.168.0.132:<端口>`。端口被占用时会跳过该服务；可以用环境变量改本地端口，例如 `MYSQL_AUTH_PORT=13307`。日志和 PID 在 `/tmp/microservice-lab-port-forward`。
 
-gateway 的端口转发等 gateway 清单加入后再补。
+Gateway 也可以直接走 `https://gateway.lan`，不依赖 port-forward。
 
 ## 业务服务
 
-`apps/` 下目前只有目录占位，没有 Argo CD Application：
-
-- `apps/auth-service`
-- `apps/order-service`
-- `apps/tenant-service`
-- `apps/user-service`
-- `apps/gateway`
-
-服务清单准备好后，再添加 Deployment/Service/ConfigMap 和对应的 Argo CD Application。gateway 通过 `gateway.lan` 暴露。
+- `apps/user-service`：已部署，镜像 `user-service:v1`，端口 8081，Flyway 负责 `user_db` 的迁移。
+- `apps/gateway`：已部署，镜像 `gateway:gateway-v1`，端口 8080，Ingress `gateway.lan`。
+- `apps/auth-service`、`order-service`、`tenant-service`：目录占位，后续补。
+- 网关路由配置在 Nacos 的 `gateway.yaml`，当前只配置了 `/users/**`；gateway 目前没有 JWT/认证过滤器，鉴权后续再加。
 
 ## 存储与容量
 
 - StorageClass：`microservice-lab-local`（`rancher.io/local-path`，`Retain`，`WaitForFirstConsumer`）。
 - PVC 合计约 31Gi：五个 MySQL 25Gi、Redis 2Gi、RabbitMQ 2Gi、Nacos 日志 2Gi。
 - 当前没有可观测性组件；后续加 Prometheus/Loki/Grafana 时需要重新评估内存和磁盘。
-- 五个 MySQL 和 Nacos 的 requests 合计约 1.8C/3.3Gi，limits 约 4.5C/5.8Gi。业务服务加入后还会增加，建议上线前再看一次节点余量。
+- 五个 MySQL 和 Nacos 的 requests 合计约 1.8C/3.3Gi，limits 约 4.5C/5.8Gi。
+- user-service 和 gateway 再加约 0.35C/0.75Gi requests、1.5C/1.5Gi limits。当前节点余量够用，后续加服务时再评估。
 
 ## 删除和备份
 

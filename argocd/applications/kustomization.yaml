@@ -12,3 +12,5 @@ resources:
   - 18-nacos.yaml
   - 20-redis.yaml
   - 20-rabbitmq.yaml
+  - 30-user-service.yaml
+  - 35-gateway.yaml

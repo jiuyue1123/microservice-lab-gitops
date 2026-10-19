@@ -11,7 +11,7 @@
 # exposing ports to other LAN machines, use:
 #   BIND_ADDRESS=0.0.0.0 ./hack/port-forward.sh start
 #
-# The gateway port will be added once the gateway application exists.
+# The gateway and user-service ports are included once the apps are deployed.
 
 set -euo pipefail
 
@@ -33,6 +33,8 @@ MYSQL_NACOS_PORT="${MYSQL_NACOS_PORT:-3311}"
 REDIS_PORT="${REDIS_PORT:-6379}"
 RABBITMQ_AMQP_PORT="${RABBITMQ_AMQP_PORT:-5672}"
 RABBITMQ_PORT="${RABBITMQ_PORT:-15672}"
+USER_SERVICE_PORT="${USER_SERVICE_PORT:-18081}"
+GATEWAY_PORT="${GATEWAY_PORT:-18080}"
 
 # name|namespace|target|local port|remote port
 FORWARDS=(
@@ -49,6 +51,8 @@ FORWARDS=(
   "redis|microservice-lab-platform|svc/redis|${REDIS_PORT}|6379"
   "rabbitmq-amqp|microservice-lab-platform|svc/rabbitmq|${RABBITMQ_AMQP_PORT}|5672"
   "rabbitmq|microservice-lab-platform|svc/rabbitmq|${RABBITMQ_PORT}|15672"
+  "user-service|microservice-lab-apps|svc/user-service|${USER_SERVICE_PORT}|8081"
+  "gateway|microservice-lab-apps|svc/gateway|${GATEWAY_PORT}|8080"
 )
 
 mkdir -p "${RUN_DIR}"

@@ -7,6 +7,8 @@ umask 077
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS_FILE="${REPO_ROOT}/.secrets.env"
+ENV_FILE="${REPO_ROOT}/.env"
+APPS_NAMESPACE="microservice-lab-apps"
 
 command -v kubectl >/dev/null 2>&1 || { echo "ERROR: kubectl not found" >&2; exit 1; }
 command -v openssl >/dev/null 2>&1 || { echo "ERROR: openssl not found" >&2; exit 1; }
@@ -121,6 +123,43 @@ read_secret() {
 } > "${SECRETS_FILE}"
 chmod 600 "${SECRETS_FILE}"
 
+if [ ! -f "${ENV_FILE}" ]; then
+  cat > "${ENV_FILE}" <<EOF
+# Application environment for microservice-lab.
+# Edit this file, then rerun bootstrap/secrets.sh.
+NACOS_SERVER_ADDR=nacos.microservice-lab-platform.svc:8848
+NACOS_NAMESPACE=microservice-lab
+NACOS_GROUP=DEFAULT_GROUP
+NACOS_USERNAME=$(read_secret microservice-lab-platform nacos-client-credentials username)
+NACOS_PASSWORD=$(read_secret microservice-lab-platform nacos-client-credentials password)
+JAVA_OPTS=-XX:MaxRAMPercentage=75.0 -Duser.timezone=Asia/Shanghai
+TZ=Asia/Shanghai
+SPRING_PROFILES_ACTIVE=default
+DB_HOST=mysql-user
+DB_PORT=3306
+DB_NAME=user_db
+DB_USERNAME=user
+DB_PASSWORD=$(read_secret microservice-lab-platform mysql-user-credentials mysql-password)
+EOF
+  chmod 600 "${ENV_FILE}"
+  echo "Created ${ENV_FILE}"
+fi
+
+COMMON_ENV="$(mktemp)"
+DB_ENV="$(mktemp)"
+trap 'rm -f "${COMMON_ENV}" "${DB_ENV}"' EXIT
+grep -vE '^(DB_|#|$)' "${ENV_FILE}" > "${COMMON_ENV}"
+grep -E '^DB_' "${ENV_FILE}" > "${DB_ENV}"
+
+kubectl -n "${APPS_NAMESPACE}" create secret generic app-common-env \
+  --from-env-file="${COMMON_ENV}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+kubectl -n "${APPS_NAMESPACE}" create secret generic user-service-db \
+  --from-env-file="${DB_ENV}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+echo "Application env secrets applied in ${APPS_NAMESPACE}"
+
 echo
 echo "Secrets are present in the cluster."
 echo "Local reference written to ${SECRETS_FILE} (gitignored)."
+echo "Application env written to ${ENV_FILE} (gitignored)."
+echo "After editing ${ENV_FILE}, rerun this script and restart the apps:"
+echo "  kubectl -n ${APPS_NAMESPACE} rollout restart deploy/user-service deploy/gateway"
